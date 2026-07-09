@@ -410,7 +410,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const cols = lines[i].split(",").map(c => c.replace(/"/g, "").trim());
-      const hasName = cols.findIndex(c => c.includes("品名") || c.includes("商品") || c.includes("名稱"));
+      let hasName = cols.findIndex(c => c.includes("品名") || c.includes("商品"));
+      if (hasName === -1) {
+        hasName = cols.findIndex(c => c.includes("名稱") && !c.includes("載具") && !c.includes("自訂"));
+      }
       if (hasName !== -1) {
         headers = cols;
         nameIdx = hasName;
