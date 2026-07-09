@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Recall | 電子發票毒油回收快速查詢系統</title>
+  <meta name="description" content="透過電子發票 QR Code、手機載具發票明細 API 或 CSV 匯入，快速查詢購買商品是否屬於中聯油脂案毒油影響之 440 項預防性下架與下游回收產品明細。">
+  
+  <!-- SEO & Social Meta Tags -->
+  <meta property="og:title" content="E-Recall | 電子發票毒油回收快速查詢系統">
+  <meta property="og:description" content="透過電子發票、手機載具或 CSV 匯入，快速比對您購買的油品及食品是否受到毒油事件波及。">
+  <meta property="og:type" content="website">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- HTML5 QR Code Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  
+  <!-- Custom CSS stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Decorative Orbs -->
+  <div class="decor-orb orb-1"></div>
+  <div class="decor-orb orb-2"></div>
+  <div class="decor-orb orb-3"></div>
+
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <i data-lucide="shield-alert" class="logo-icon"></i>
+        <div>
+          <span class="logo-subtitle">FOOD SAFETY AUDIT</span>
+          <h1 id="main-title">E-Recall 毒油案發票快速比對系統</h1>
+        </div>
+      </div>
+      <div class="header-badge">
+        <span class="pulse-indicator"></span>
+        食藥署公告 115/07/09 同步
+      </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Left sidebar: Navigation Tabs & Stats -->
+      <section class="sidebar-panel">
+        <nav class="tab-navigation">
+          <button class="nav-tab active" data-tab="carrier-tab">
+            <i data-lucide="smartphone"></i> 手機載具/明細匯入
+          </button>
+          <button class="nav-tab" data-tab="scan-tab">
+            <i data-lucide="qr-code"></i> 發票 QR Code 掃描
+          </button>
+          <button class="nav-tab" data-tab="search-tab">
+            <i data-lucide="search"></i> 手動產品比對
+          </button>
+          <button class="nav-tab" data-tab="flow-tab">
+            <i data-lucide="git-fork"></i> 毒油流向視覺化
+          </button>
+          <button class="nav-tab" data-tab="database-tab">
+            <i data-lucide="database"></i> 完整下架明細表
+          </button>
+        </nav>
+
+        <!-- Stats Card -->
+        <div class="stats-card">
+          <h3>資料庫監控摘要</h3>
+          <div class="stat-row">
+            <span class="stat-label">預防性下架品項</span>
+            <span class="stat-value text-red">440 項</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">受影響下游業者</span>
+            <span class="stat-value text-orange">489 家</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">污染源油槽</span>
+            <span class="stat-value text-yellow">313 / 315 槽</span>
+          </div>
+          <p class="stat-desc">中聯油脂精煉製程大豆油受「苯駢芘」超標污染，波及福懋、福壽、泰山等下游油品大廠及食品業者。</p>
+        </div>
+      </section>
+
+      <!-- Right panel: Active Tab Content -->
+      <section class="content-panel">
+        
+        <!-- TAB 1: Carrier (手機載具 & CSV) -->
+        <div id="carrier-tab" class="tab-content active">
+          <div class="tab-header">
+            <h2>手機載具發票比對</h2>
+            <p>透過串接財政部電子發票載具 API 或匯入消費明細 CSV，一鍵篩檢您的歷史消費紀錄是否買過受污染油品食品。</p>
+          </div>
+
+          <div class="carrier-grid">
+            
+            <!-- Option A: CSV Drag and Drop -->
+            <div class="card-panel">
+              <div class="card-header">
+                <i data-lucide="file-spreadsheet" class="card-icon text-purple"></i>
+                <div>
+                  <h3>方案 A：匯入發票消費明細 CSV</h3>
+                  <p>隱私安全，無須上傳，100% 於本地瀏覽器沙盒中解析比對</p>
+                </div>
+              </div>
+              
+              <div class="drag-drop-area" id="csv-dropzone">
+                <i data-lucide="upload-cloud" class="upload-icon"></i>
+                <p>拖曳財政部發票明細 CSV 檔案至此，或 <span class="browse-btn">瀏覽檔案</span></p>
+                <input type="file" id="csv-file-input" accept=".csv" class="hidden-input">
+                <span class="file-hint">支援格式：財政部電子發票整合服務平台下載之消費明細 CSV</span>
+              </div>
+            </div>
+
+            <!-- Option B: MOF API Integration -->
+            <div class="card-panel">
+              <div class="card-header">
+                <i data-lucide="api" data-lucide="link" class="card-icon text-blue"></i>
+                <div>
+                  <h3>方案 B：介接財政部發票載具 API</h3>
+                  <p>需啟動本地後端伺服器 (server.js)，並填寫個人 AppID 進行安全連線</p>
+                </div>
+              </div>
+
+              <!-- Connection Status Banner -->
+              <div class="connection-banner offline" id="proxy-status">
+                <span class="status-dot"></span>
+                <span class="status-text">未連線至本地代理伺服器 (Port 3000)</span>
+              </div>
+
+              <form id="api-query-form" class="api-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="cardNo">手機條碼 (載具)</label>
+                    <input type="text" id="cardNo" placeholder="/AB12345" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="cardEncrypt">驗證碼 (載具密碼)</label>
+                    <input type="password" id="cardEncrypt" placeholder="請輸入載具密碼" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="startDate">查詢起始日</label>
+                    <input type="date" id="startDate" required value="2026-04-01">
+                  </div>
+                  <div class="form-group">
+                    <label for="endDate">查詢截止日</label>
+                    <input type="date" id="endDate" required value="2026-07-09">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="appID">財政部 AppID</label>
+                    <input type="text" id="appID" placeholder="請輸入財政部核發 AppID" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="apiKey">APIKey</label>
+                    <input type="password" id="apiKey" placeholder="請輸入 APIKey" required>
+                  </div>
+                </div>
+                <button type="submit" class="submit-btn" id="api-submit-btn">
+                  <i data-lucide="refresh-cw"></i> 啟動 API 自動查詢與比對
+                </button>
+              </form>
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- TAB 2: Scan QR Code -->
+        <div id="scan-tab" class="tab-content">
+          <div class="tab-header">
+            <h2>電子發票 QR Code 掃描比對</h2>
+            <p>使用視訊鏡頭對準發票上的 QR Code，或直接複製發票 QR Code 字串，系統將解密並擷取發票內的所有商品名進行比對。</p>
+          </div>
+
+          <div class="scanner-grid">
+            <div class="card-panel scanner-view">
+              <div class="scanner-header">
+                <h3>相機即時掃描</h3>
+                <div class="scanner-controls">
+                  <button class="icon-btn" id="start-camera-btn" title="開啟相機"><i data-lucide="video"></i> 開啟相機</button>
+                  <button class="icon-btn danger hidden" id="stop-camera-btn" title="關閉相機"><i data-lucide="video-off"></i> 關閉</button>
+                </div>
+              </div>
+              
+              <!-- Video Scan Box -->
+              <div class="scan-window">
+                <div id="scanner-reader"></div>
+                <div class="scan-placeholder" id="scanner-placeholder">
+                  <i data-lucide="camera" class="scan-placeholder-icon"></i>
+                  <p>相機未啟動</p>
+                  <span>點選右上方「開啟相機」按鈕開始</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-panel qr-manual-paste">
+              <h3>手動貼上發票條碼字串</h3>
+              <p class="section-desc">若您有使用掃描槍，或已複製發票的 QR Code 文字，請直接貼在下方：</p>
+              <textarea id="qr-text-input" placeholder="範例：&#10;AB1234567810301011234000001000000001234567887654321xxxxxxxxxxxxxxxx**雙蔬鮪魚飯糰:1:35:星級饗宴-米香鹹酥蝦飯糰:2:45"></textarea>
+              <button class="submit-btn purple" id="parse-qr-btn">
+                <i data-lucide="sparkles"></i> 解析並比對發票明細
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: Manual Search -->
+        <div id="search-tab" class="tab-content">
+          <div class="tab-header">
+            <h2>手動單項產品查詢</h2>
+            <p>若您手邊沒有發票，可以輸入產品名稱、製造商、或是您所去消費的餐飲店鋪名稱，來查詢是否屬於被稽查之列。</p>
+          </div>
+
+          <div class="card-panel search-filters-panel">
+            <div class="search-main-input">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="search-input" placeholder="輸入關鍵字... (例如: 聯華、路易莎、飯糰、沙拉油、金色三麥)">
+            </div>
+            
+            <div class="filters-row">
+              <div class="filter-group">
+                <label>比對清單類型</label>
+                <select id="filter-db-type">
+                  <option value="all">全部資料庫 (下架產品 + 下游業者)</option>
+                  <option value="recall">預防性下架產品清單 (440 項)</option>
+                  <option value="vendor">下游業者稽查清單 (489 家)</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>縣市地區</label>
+                <select id="filter-city">
+                  <option value="all">所有縣市</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>大廠品牌</label>
+                <select id="filter-brand">
+                  <option value="all">所有油脂下游大廠</option>
+                  <option value="聯華">聯華食品</option>
+                  <option value="路易莎">路易莎職人咖啡</option>
+                  <option value="南僑">南僑油脂</option>
+                  <option value="金色三麥">金色三麥</option>
+                  <option value="泰山">泰山企業</option>
+                  <option value="福壽">福壽實業</option>
+                  <option value="福懋">福懋油脂</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Flow Chart -->
+        <div id="flow-tab" class="tab-content">
+          <div class="tab-header">
+            <h2>毒油流向視覺化圖表</h2>
+            <p>互動式地圖，展示中聯油脂受苯駢芘污染之大豆油，是如何流向下游福懋、福壽、泰山大廠，並進一步製成哪些終端消費者食品。</p>
+          </div>
+
+          <div class="flow-layout">
+            <!-- Selector for oil tank cases -->
+            <div class="flow-selector">
+              <button class="flow-select-btn active" data-flow="315">中聯油槽 315 (截至 115/07/09)</button>
+              <button class="flow-select-btn" data-flow="313">中聯油槽 313 (泰山好理調和油超標)</button>
+            </div>
+
+            <!-- Flow Visualizer Canvas Wrapper -->
+            <div class="flow-canvas-card">
+              <div class="flow-node-tree" id="flow-tree-container">
+                <!-- Will be dynamically populated via JS for premium design -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 5: Database Database -->
+        <div id="database-tab" class="tab-content">
+          <div class="tab-header">
+            <h2>官方完整下架明細資料庫</h2>
+            <p>瀏覽全部食藥署正式公告之受波及清單。包含所有下架產品名稱、有效日期批號、各縣市業者名冊。</p>
+          </div>
+
+          <!-- DB Tabs inside database view -->
+          <div class="db-sub-tabs">
+            <button class="db-tab active" data-db="recall">預防性下架產品庫 (440 筆)</button>
+            <button class="db-tab" data-db="vendor">下游業者查核庫 (489 筆)</button>
+          </div>
+
+          <div class="card-panel table-panel">
+            <div class="table-responsive">
+              <table id="db-table" class="data-table">
+                <thead>
+                  <tr id="db-table-headers">
+                    <!-- Headers populated dynamically -->
+                  </tr>
+                </thead>
+                <tbody id="db-table-body">
+                  <!-- Data rows populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination-footer">
+              <span id="page-indicator">第 1 / 1 頁</span>
+              <div class="pagination-controls">
+                <button class="btn-page" id="prev-page-btn"><i data-lucide="chevron-left"></i> 上一頁</button>
+                <button class="btn-page" id="next-page-btn">下一頁 <i data-lucide="chevron-right"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GLOBAL RESULTS DISPLAY (Always visible below tabs when results are present) -->
+        <div class="card-panel results-section hidden" id="results-panel">
+          <div class="results-header">
+            <div class="results-title-group">
+              <i data-lucide="search-code" class="results-icon"></i>
+              <div>
+                <h3>比對分析結果</h3>
+                <span id="results-metadata"></span>
+              </div>
+            </div>
+            <button class="icon-btn danger text-btn" id="clear-results-btn"><i data-lucide="trash-2"></i> 清除結果</button>
+          </div>
+
+          <!-- Status Indicator Banner -->
+          <div class="status-summary-banner" id="status-banner">
+            <!-- Will inject alert-level classes like 'alert-danger', 'alert-success' -->
+          </div>
+
+          <!-- Parsed Invoice Details -->
+          <div class="invoice-summary-card hidden" id="invoice-details-card">
+            <h4>發票交易明細</h4>
+            <div class="invoice-details-grid">
+              <div><strong>發票號碼：</strong><span id="res-inv-num">-</span></div>
+              <div><strong>發票日期：</strong><span id="res-inv-date">-</span></div>
+              <div><strong>發票來源：</strong><span id="res-inv-src">-</span></div>
+            </div>
+          </div>
+
+          <!-- Products Analysis Table -->
+          <div class="products-analysis-list">
+            <h4>比對清單明細</h4>
+            <div class="analysis-table-wrapper">
+              <table class="analysis-table">
+                <thead>
+                  <tr>
+                    <th>品名</th>
+                    <th>購買狀態</th>
+                    <th>製造業者</th>
+                    <th>食安檢核狀態</th>
+                    <th>公告下架資訊</th>
+                  </tr>
+                </thead>
+                <tbody id="analysis-results-body">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>© 2026 E-Recall 台灣食安發票比對防護網。資料來源：中華民國衛生福利部食品藥物管理署。</p>
+      <p class="footer-links">
+        <a href="https://www.fda.gov.tw/tc/site.aspx?sid=13707&r=175957992" target="_blank" rel="noopener noreferrer">食藥署中聯油脂專區</a> | 
+        <a href="https://www.einvoice.nat.gov.tw/" target="_blank" rel="noopener noreferrer">財政部電子發票平台</a>
+      </p>
+    </footer>
+
+  </div>
+
+  <!-- JavaScript Application Entry -->
+  <script src="app.js"></script>
+</body>
+</html>
