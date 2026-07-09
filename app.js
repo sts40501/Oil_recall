@@ -224,6 +224,11 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  function isGenericKeyword(name) {
+    const genericList = ["便當", "即食食品", "肉粽", "沙拉油", "一級黃豆油", "烹調使用", "員工餐廳", "沙拉醬", "香油", "大豆沙拉油", "烹調油"];
+    return genericList.includes(name);
+  }
+
   // --- Fuzzy Check Recall Matcher ---
   // Returns match details if found in recallList or downstreamVendors
   function checkRecallStatus(productName) {
@@ -239,8 +244,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const cleanRecall = r.prod_name.replace(/[\(\)\（\）\s]/g, "")
                                       .replace(/金馬|離|區|金/g, "");
       
-      // Match if one contains the other (e.g. "雙蔬鮪魚飯糰" and "(金馬)雙蔬鮪魚飯糰" or "鮪魚飯糰")
-      if (cleanName.includes(cleanRecall) || cleanRecall.includes(cleanName)) {
+      const isGeneric = isGenericKeyword(cleanRecall);
+      let isMatch = false;
+      if (isGeneric) {
+        isMatch = (cleanName === cleanRecall);
+      } else {
+        isMatch = (cleanName.includes(cleanRecall) || cleanRecall.includes(cleanName));
+      }
+      
+      if (isMatch) {
         return {
           status: 'danger',
           type: '預防性下架',
@@ -251,12 +263,24 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // 2. Check against Downstream Vendors list (e.g., if user bought oil or ingredients from affected vendors)
+    // 2. Check against Downstream Vendors list
     for (const v of state.downstreamVendors) {
       const cleanItem = v.item.replace(/[\(\)\（\）\s]/g, "");
       const cleanVendor = v.vendor.replace(/[\(\)\（\）\s]/g, "");
       
-      if (cleanName.includes(cleanItem) || cleanItem.includes(cleanName) || cleanName.includes(cleanVendor)) {
+      const isGenericItem = isGenericKeyword(cleanItem);
+      const isAnonymized = cleanVendor.includes("O") || cleanVendor.includes("o") || cleanVendor.includes("○") || cleanVendor.includes("〇");
+      
+      let isMatch = false;
+      if (isGenericItem) {
+        isMatch = (cleanName === cleanItem);
+      } else {
+        const itemMatch = cleanName.includes(cleanItem) || cleanItem.includes(cleanName);
+        const vendorMatch = !isAnonymized && (cleanName.includes(cleanVendor) || cleanVendor.includes(cleanName));
+        isMatch = itemMatch || vendorMatch;
+      }
+      
+      if (isMatch) {
         return {
           status: 'warning',
           type: '下游受影響業者產油/食品',
