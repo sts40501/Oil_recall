@@ -231,11 +231,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Fuzzy Check Recall Matcher ---
   // Returns match details if found in recallList or downstreamVendors
-  function checkRecallStatus(productName) {
+  function checkRecallStatus(productName, sellerName = "") {
     if (!productName) return { status: 'safe' };
     
     const cleanName = productName.replace(/[\(\)\（\）\s]/g, "")
                                  .replace(/金馬|離|區|金/g, ""); // strip common prefixes
+    
+    const cleanSeller = sellerName ? sellerName.replace(/[\(\)\（\）\s]/g, "") : "";
     
     if (cleanName.length < 2) return { status: 'safe' };
 
@@ -243,11 +245,22 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const r of state.recallList) {
       const cleanRecall = r.prod_name.replace(/[\(\)\（\）\s]/g, "")
                                       .replace(/金馬|離|區|金/g, "");
+      const cleanRecallVendor = r.vendor.replace(/[\(\)\（\）\s]/g, "");
       
       const isGeneric = isGenericKeyword(cleanRecall);
       let isMatch = false;
       if (isGeneric) {
-        isMatch = (cleanName === cleanRecall);
+        // If exact name matches (e.g. "便當" = "便當")
+        const exactProdMatch = (cleanName === cleanRecall);
+        if (exactProdMatch) {
+          if (cleanSeller) {
+            // Require the seller name to match the recall vendor name, or allow general retail stores
+            isMatch = cleanSeller.includes(cleanRecallVendor) || cleanRecallVendor.includes(cleanSeller) ||
+                      ["全聯", "家樂福", "大潤發", "蝦皮", "酷澎", "momo"].some(s => cleanSeller.includes(s));
+          } else {
+            isMatch = true; // fallback to true for safety if no seller details
+          }
+        }
       } else {
         isMatch = (cleanName.includes(cleanRecall) || cleanRecall.includes(cleanName));
       }
@@ -273,10 +286,19 @@ document.addEventListener("DOMContentLoaded", () => {
       
       let isMatch = false;
       if (isGenericItem) {
-        isMatch = (cleanName === cleanItem);
+        // For generic items like "沙拉油", match if the store name matches the vendor or if product name matches
+        if (cleanSeller && !isAnonymized) {
+          isMatch = cleanSeller.includes(cleanVendor) || cleanVendor.includes(cleanSeller);
+        } else {
+          isMatch = (cleanName === cleanItem);
+        }
       } else {
         const itemMatch = cleanName.includes(cleanItem) || cleanItem.includes(cleanName);
-        const vendorMatch = !isAnonymized && (cleanName.includes(cleanVendor) || cleanVendor.includes(cleanName));
+        const vendorMatch = !isAnonymized && (
+          cleanName.includes(cleanVendor) || 
+          cleanVendor.includes(cleanName) ||
+          (cleanSeller && (cleanSeller.includes(cleanVendor) || cleanVendor.includes(cleanSeller)))
+        );
         isMatch = itemMatch || vendorMatch;
       }
       
@@ -326,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
     analysisResultsBody.innerHTML = "";
 
     invoiceData.products.forEach(p => {
-      const recall = checkRecallStatus(p.name);
+      const recall = checkRecallStatus(p.name, p.sellerName);
       
       let statusBadge = `<span class="badge success">安全</span>`;
       let actionInfo = "未在食藥署回收/警告清單中檢出。";
@@ -431,6 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // MOF standard CSV columns usually contain "發票號碼", "品名", "明細品名" or "商品名稱"
     let nameIdx = -1;
     let qtyIdx = -1;
+    let sellerIdx = -1;
     
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const cols = lines[i].split(",").map(c => c.replace(/"/g, "").trim());
@@ -442,6 +465,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers = cols;
         nameIdx = hasName;
         qtyIdx = cols.findIndex(c => c.includes("數量") || c.includes("件數"));
+        sellerIdx = cols.findIndex(c => c.includes("賣方名稱") || c.includes("公司") || c.includes("商店") || c.includes("店家") || c.includes("業者"));
         // Remove prior index lines as metadata
         lines.splice(0, i + 1);
         break;
@@ -457,11 +481,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, "").trim());
       if (cols.length > nameIdx && cols[nameIdx] !== "") {
         const prodName = cols[nameIdx];
+        const sellerName = sellerIdx !== -1 && cols[sellerIdx] ? cols[sellerIdx] : "";
         // skip common footer or header row duplicate
         if (prodName !== "品名" && prodName !== "商品名稱" && !prodName.startsWith("---")) {
           products.push({
             name: prodName,
-            qty: qtyIdx !== -1 && cols[qtyIdx] ? cols[qtyIdx] : "1"
+            qty: qtyIdx !== -1 && cols[qtyIdx] ? cols[qtyIdx] : "1",
+            sellerName: sellerName
           });
         }
       }
