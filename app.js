@@ -220,6 +220,15 @@ document.addEventListener("DOMContentLoaded", () => {
     })[character]);
   }
 
+  function formatInvoiceDate(value = "") {
+    const raw = String(value).trim();
+    if (!raw) return "未提供";
+    const compactDate = raw.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (compactDate) return `${compactDate[1]}/${compactDate[2]}/${compactDate[3]}（CSV 未提供時間）`;
+    if (/\d{1,2}:\d{2}/.test(raw)) return raw;
+    return `${raw}（未提供時間）`;
+  }
+
   // --- Display Results Panel ---
   function displayResults(invoiceData) {
     if (!invoiceData || invoiceData.products.length === 0) {
@@ -246,33 +255,44 @@ document.addEventListener("DOMContentLoaded", () => {
       invoiceDetailsCard.classList.add("hidden");
     }
 
-    // Process all products
-    let dangerCount = 0;
-    let warningCount = 0;
+    // 先分析再排序：公告候選、流向候選、未命中，並保留同組原始順序。
+    const statusPriority = { danger: 0, warning: 1, safe: 2 };
+    const analyzedProducts = invoiceData.products
+      .map((product, originalIndex) => ({
+        product,
+        originalIndex,
+        recall: checkRecallStatus(product.name, product.sellerName),
+      }))
+      .sort((a, b) => (statusPriority[a.recall.status] ?? 2) - (statusPriority[b.recall.status] ?? 2) || a.originalIndex - b.originalIndex);
+    const dangerCount = analyzedProducts.filter(item => item.recall.status === 'danger').length;
+    const warningCount = analyzedProducts.filter(item => item.recall.status === 'warning').length;
+    const matchedCount = dangerCount + warningCount;
+    resultsMetadata.innerText = `來源：${invoiceData.source}｜共 ${invoiceData.products.length} 項｜${matchedCount ? `${matchedCount} 項候選已置頂` : '未命中公告品項'}`;
     analysisResultsBody.innerHTML = "";
 
-    invoiceData.products.forEach(p => {
-      const recall = checkRecallStatus(p.name, p.sellerName);
-      
+    analyzedProducts.forEach(({ product: p, recall }) => {
       let statusBadge = `<span class="badge neutral">未命中清單</span>`;
       let actionInfo = "未比對到目前載入的公告品項；此結果不等同食品安全保證。";
 
       if (recall.status === 'danger') {
-        dangerCount++;
         statusBadge = `<span class="badge danger">公告品項相符</span>`;
         actionInfo = recall.info;
       } else if (recall.status === 'warning') {
-        warningCount++;
         statusBadge = `<span class="badge warning">流向品項相符</span>`;
         actionInfo = recall.info;
       }
 
+      const invoiceNumber = p.invoiceNumber || (invoiceData.invNum && !invoiceData.invNum.includes('批次') ? invoiceData.invNum : '未提供');
+      const invoiceDate = formatInvoiceDate(p.invoiceDate || invoiceData.invDate);
       const tr = document.createElement("tr");
+      tr.className = recall.status === 'safe' ? '' : `matched-row ${recall.status}`;
       tr.innerHTML = `
+        <td data-label="比對結果">${statusBadge}</td>
         <td data-label="發票品名"><strong>${escapeHtml(p.name)}</strong></td>
+        <td data-label="發票號碼"><code class="invoice-number">${escapeHtml(invoiceNumber)}</code></td>
+        <td data-label="交易日期／時間"><time>${escapeHtml(invoiceDate)}</time></td>
         <td data-label="購買店家">${escapeHtml(p.sellerName || '未提供')}</td>
         <td data-label="數量">${escapeHtml(p.qty || 1)}</td>
-        <td data-label="比對結果">${statusBadge}</td>
         <td data-label="判斷依據" class="result-reason">${escapeHtml(actionInfo)}</td>
       `;
       analysisResultsBody.appendChild(tr);
@@ -378,6 +398,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let nameIdx = -1;
     let qtyIdx = -1;
     let sellerIdx = -1;
+    let invoiceIdx = -1;
+    let invoiceDateIdx = -1;
     
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const cols = lines[i].split(",").map(c => c.replace(/"/g, "").trim());
@@ -390,6 +412,8 @@ document.addEventListener("DOMContentLoaded", () => {
         nameIdx = hasName;
         qtyIdx = cols.findIndex(c => c.includes("數量") || c.includes("件數"));
         sellerIdx = cols.findIndex(c => c.includes("賣方名稱") || c.includes("公司") || c.includes("商店") || c.includes("店家") || c.includes("業者"));
+        invoiceIdx = cols.findIndex(c => c.includes("發票號碼"));
+        invoiceDateIdx = cols.findIndex(c => c.includes("發票日期") || c.includes("交易時間") || c.includes("開立時間"));
         // Remove prior index lines as metadata
         lines.splice(0, i + 1);
         break;
@@ -411,7 +435,10 @@ document.addEventListener("DOMContentLoaded", () => {
           products.push({
             name: prodName,
             qty: qtyIdx !== -1 && cols[qtyIdx] ? cols[qtyIdx] : "1",
-            sellerName: sellerName
+            sellerName: sellerName,
+            invoiceNumber: invoiceIdx !== -1 && cols[invoiceIdx] ? cols[invoiceIdx] : "",
+            invoiceDate: invoiceDateIdx !== -1 && cols[invoiceDateIdx] ? cols[invoiceDateIdx] : "",
+            sourceFile: filename,
           });
         }
       }
