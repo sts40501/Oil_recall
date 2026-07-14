@@ -4,7 +4,7 @@
   "description": "Proxy server for Taiwan E-Invoice API to query carrier history and prevent CORS issues.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --env-file-if-exists=.env server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

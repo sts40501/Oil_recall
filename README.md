@@ -52,9 +52,8 @@
 # 安裝依賴
 npm install
 
-# 正式環境：將財政部核發的憑證僅放在伺服器端
-export EINVOICE_APP_ID='your-app-id'
-export EINVOICE_API_KEY='your-api-key'
+# 本機：複製 .env.example 為 .env 後填入憑證（.env 已被 Git 忽略）
+cp .env.example .env
 
 # 啟動代理伺服器 (預設 Port 3000)
 npm start
