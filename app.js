@@ -224,9 +224,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const raw = String(value).trim();
     if (!raw) return "未提供";
     const compactDate = raw.match(/^(\d{4})(\d{2})(\d{2})$/);
-    if (compactDate) return `${compactDate[1]}/${compactDate[2]}/${compactDate[3]}（CSV 未提供時間）`;
-    if (/\d{1,2}:\d{2}/.test(raw)) return raw;
-    return `${raw}（未提供時間）`;
+    if (compactDate) return `${compactDate[1]}/${compactDate[2]}/${compactDate[3]}`;
+    const separatedDate = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+    if (separatedDate) return `${separatedDate[1]}/${separatedDate[2].padStart(2, '0')}/${separatedDate[3].padStart(2, '0')}`;
+    return raw.split(/[ T]/)[0];
   }
 
   // --- Display Results Panel ---
@@ -290,7 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td data-label="比對結果">${statusBadge}</td>
         <td data-label="發票品名"><strong>${escapeHtml(p.name)}</strong></td>
         <td data-label="發票號碼"><code class="invoice-number">${escapeHtml(invoiceNumber)}</code></td>
-        <td data-label="交易日期／時間"><time>${escapeHtml(invoiceDate)}</time></td>
+        <td data-label="發票日期"><time>${escapeHtml(invoiceDate)}</time></td>
         <td data-label="購買店家">${escapeHtml(p.sellerName || '未提供')}</td>
         <td data-label="數量">${escapeHtml(p.qty || 1)}</td>
         <td data-label="判斷依據" class="result-reason">${escapeHtml(actionInfo)}</td>
