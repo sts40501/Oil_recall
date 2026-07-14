@@ -14,7 +14,8 @@ function renderResult(response) {
   output.replaceChildren(...response.matches.map((match) => {
     const row = document.createElement('article');
     row.className = `erecall-match ${match.level}`;
-    row.textContent = `${match.source}｜${match.vendor}｜${match.item}${match.detail ? `｜${match.detail}` : ''}`;
+    const qualifier = match.matchType === 'brand' ? '｜業者名稱可能相符，請確認門市、品項與批號' : '';
+    row.textContent = `${match.source}｜${match.vendor}｜${match.item}${match.detail ? `｜${match.detail}` : ''}${qualifier}`;
     return row;
   }));
 }
