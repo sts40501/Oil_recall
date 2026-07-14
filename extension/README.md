@@ -1,22 +1,20 @@
 # E-Recall Chromium 擴充功能
 
-此資料夾可直接以 Chrome 或 Edge 的「載入未封裝項目」安裝。它只提供**登入後的手機載具查詢**；網站版仍維持 CSV 與 QR Code 的本機手動比對。
+此擴充功能不連線至第三方後端，也不需要財政部 API 憑證。
 
-## 安裝與設定
+## 安裝
 
-1. 先在 Netlify 部署主網站，並啟用 **Identity**。
-2. 於 Netlify 的 Environment variables 設定 `EINVOICE_APP_ID` 與 `EINVOICE_API_KEY`（Production scope）。
-3. 在 Chrome 開啟 `chrome://extensions`，啟用「開發人員模式」，選擇「載入未封裝項目」，選取這個 `extension/` 資料夾。
-4. 在擴充功能的「設定」填入 Netlify 網站 HTTPS 網址，並同意該單一網站權限。
-5. 使用 Netlify Identity 帳號登入後，才會顯示載具查詢畫面。
+1. 在 Chrome／Edge 開啟擴充功能管理頁，啟用「開發人員模式」。
+2. 點選「載入未封裝項目」，選取本資料夾 `extension/`。
+3. 點擊工具列 E-Recall 圖示，開啟官方電子發票平台。
+4. 使用者自行登入、完成官方圖形驗證並開啟發票明細頁。
+5. 再點擊工具列 E-Recall 圖示，或頁面右下角「E-Recall 比對目前頁面」按鈕。
 
-## 隱私與權限
+## 隱私與限制
 
-- `EINVOICE_API_KEY` 僅存在 Netlify Function 環境變數；不會打包到擴充功能。
-- Netlify Identity access token 僅放在 `chrome.storage.session`，關閉瀏覽器工作階段即清除。
-- 手機條碼與載具密碼僅在按下查詢時以 HTTPS 傳給 Function，完成後立即清空密碼輸入欄，不寫入任何 Chrome storage。
-- 擴充功能採用 optional host permission；使用者只會授權設定頁指定的單一服務網址。
+- 擴充功能只要求 `www.einvoice.nat.gov.tw` 的頁面權限。
+- 不讀取輸入的帳號、密碼、驗證碼或 cookie，不保存任何登入狀態。
+- 不對財政部網站發送查詢請求、不自動點擊或繞過圖形驗證。
+- 只將目前可見的頁面文字與隨擴充功能安裝的回收清單在本機比對；不會傳送發票資料。
 
-## Netlify Identity 設定
-
-在 Netlify 專案的 **Configuration → Identity** 啟用 Identity。建議將 Registration 設為 **Invite only**，由管理者邀請可使用載具查詢的人員；這可避免公開帳號被用來消耗財政部 API 配額。
+官方網站版面若改動，可能影響可辨識的資訊；遇到無法比對時，請改用網站版 CSV／QR Code 手動比對。

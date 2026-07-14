@@ -6,8 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
     recallList: [],
     downstreamVendors: [],
     taisunLatest: [],
-    proxyAlive: false,
-    proxyConfigured: false,
     activeTab: 'carrier-tab',
     
     // Manual database browser pagination
@@ -21,18 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // UI Elements
-  // Dynamic API Base URL detection
-  const isLocalDirect = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const apiBase = (window.location.protocol === 'file:' || (isLocalDirect && window.location.port !== '8888'))
-    ? 'http://localhost:3000/api'
-    : '/api';
-
   const tabs = document.querySelectorAll(".nav-tab");
   const tabContents = document.querySelectorAll(".tab-content");
-  const proxyStatus = document.getElementById("proxy-status");
-  const apiQueryForm = document.getElementById("api-query-form");
-  const apiSubmitBtn = document.getElementById("api-submit-btn");
-  const apiAdvanced = document.getElementById("api-advanced");
   const dataUpdated = document.getElementById("data-updated");
   const recallCount = document.getElementById("recall-count");
   const vendorCount = document.getElementById("vendor-count");
@@ -107,29 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderFlowChart('315'); // default flow chart
     } catch (e) {
       console.error("Failed to load recall databases. Make sure they are copied to data/ directory.", e);
-    }
-  }
-
-  // Check Proxy Health
-  async function checkProxyHealth() {
-    try {
-      const res = await fetch(`${apiBase}/health`);
-      const data = await res.json();
-      if (data.status === "alive") {
-        state.proxyAlive = true;
-        state.proxyConfigured = Boolean(data.configured);
-        proxyStatus.className = "connection-banner online";
-        proxyStatus.querySelector(".status-text").innerText = "已連線至安全載具查詢服務 - 可登入載具並進行比對";
-        apiAdvanced.classList.toggle("hidden", state.proxyConfigured);
-        apiSubmitBtn.disabled = false;
-      }
-    } catch (e) {
-      state.proxyAlive = false;
-      state.proxyConfigured = false;
-      apiAdvanced.classList.remove("hidden");
-      proxyStatus.className = "connection-banner offline";
-      proxyStatus.querySelector(".status-text").innerText = "未連線至載具發票 API 代理服務 - 方案 B 停用 (方案 A 仍可用)";
-      apiSubmitBtn.disabled = true;
     }
   }
 
@@ -532,99 +497,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- API Proxy Submission Logic ---
-  apiQueryForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!state.proxyAlive) {
-      alert("請確保您的本地 Node.js 代理伺服器已啟動！(指令: npm start)");
-      return;
-    }
-
-    const cardNo = document.getElementById("cardNo").value;
-    const cardEncrypt = document.getElementById("cardEncrypt").value;
-    const startDate = document.getElementById("startDate").value.replace(/-/g, "/");
-    const endDate = document.getElementById("endDate").value.replace(/-/g, "/");
-    const appID = document.getElementById("appID").value.trim();
-    const apiKey = document.getElementById("apiKey").value;
-
-    if (startDate.slice(0, 7) !== endDate.slice(0, 7)) {
-      alert("財政部載具 API 每次僅支援同一月份；請分月查詢，或改匯入 CSV 進行跨月比對。");
-      return;
-    }
-
-    apiSubmitBtn.disabled = true;
-    apiSubmitBtn.innerHTML = `<i data-lucide="refresh-cw" class="animate-spin"></i> 載入中...`;
-    lucide.createIcons();
-
-    try {
-      // Step 1: Query Invoice Headers
-      const headerRes = await fetch(`${apiBase}/carrierHeader`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardNo, cardEncrypt, startDate, endDate, ...(appID && apiKey ? { appID, apiKey } : {}) })
-      });
-      
-      const headerData = await headerRes.json();
-      if (headerData.code !== "200" || !headerData.details) {
-        alert(`API 查詢錯誤: ${headerData.msg || "無法查詢表頭"}`);
-        resetApiBtn();
-        return;
-      }
-
-      const invoices = headerData.details;
-      console.log(`Fetched ${invoices.length} invoices. Querying details...`);
-      
-      // Step 2: Fetch details for each invoice and extract product list
-      const allProducts = [];
-      
-      for (const inv of invoices) {
-        const detailRes = await fetch(`${apiBase}/carrierDetail`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cardNo,
-            cardEncrypt,
-            invNum: inv.invNum,
-            invDate: inv.invDate,
-            ...(appID && apiKey ? { appID, apiKey } : {})
-          })
-        });
-        
-        const detailData = await detailRes.json();
-        if (detailData.code === "200" && detailData.details) {
-          detailData.details.forEach(item => {
-            allProducts.push({
-              name: item.description,
-              qty: item.quantity,
-              price: item.unitPrice,
-              invNum: inv.invNum,
-              invDate: inv.invDate
-            });
-          });
-        }
-      }
-
-      displayResults({
-        invNum: `載具發票批次明細`,
-        invDate: `${startDate} ~ ${endDate}`,
-        products: allProducts,
-        source: `手機載具 ${cardNo} API 同步`
-      });
-
-    } catch (err) {
-      console.error(err);
-      alert("連線後端代理 API 時發生未預期錯誤，請檢查終端機輸出。");
-    } finally {
-      resetApiBtn();
-    }
-  });
-
-  function resetApiBtn() {
-    apiSubmitBtn.disabled = false;
-    apiSubmitBtn.innerHTML = `<i data-lucide="refresh-cw"></i> 啟動 API 自動查詢與比對`;
-    lucide.createIcons();
-  }
-
   // --- Webcam Scan QR Code Scanner Logic ---
   startCameraBtn.addEventListener("click", () => {
     startCamera();
@@ -1008,8 +880,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Launch initial checks
   loadDatabases();
-  checkProxyHealth();
-
-  // Polling proxy server health every 15 seconds
-  setInterval(checkProxyHealth, 15000);
 });

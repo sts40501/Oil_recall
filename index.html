@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>E-Recall | 電子發票毒油回收快速查詢系統</title>
-  <meta name="description" content="透過電子發票 QR Code、手機載具發票明細 API 或 CSV 匯入，快速查詢購買商品是否屬於中聯油脂案毒油影響之 440 項預防性下架與下游回收產品明細。">
+  <meta name="description" content="透過電子發票 QR Code 或 CSV 匯入，在本機快速查詢購買商品是否屬於中聯油脂案影響清單。">
   
   <!-- SEO & Social Meta Tags -->
   <meta property="og:title" content="E-Recall | 電子發票毒油回收快速查詢系統">
@@ -104,7 +104,7 @@
           <div class="carrier-grid">
             
             <!-- Option A: CSV Drag and Drop -->
-            <div class="card-panel api-card" aria-hidden="true">
+            <div class="card-panel">
               <div class="card-header">
                 <i data-lucide="file-spreadsheet" class="card-icon text-purple"></i>
                 <div>
@@ -121,63 +121,6 @@
               </div>
             </div>
 
-            <!-- Option B: MOF API Integration -->
-            <div class="card-panel">
-              <div class="card-header">
-                <i data-lucide="api" data-lucide="link" class="card-icon text-blue"></i>
-                <div>
-                  <h3>方案 B：登入手機載具後自動比對</h3>
-                  <p>載具密碼僅用於本次向財政部 API 查詢；不會儲存在瀏覽器或本站資料庫。</p>
-                </div>
-              </div>
-
-              <!-- Connection Status Banner -->
-              <div class="connection-banner offline" id="proxy-status">
-                <span class="status-dot"></span>
-                <span class="status-text">未連線至本地代理伺服器 (Port 3000)</span>
-              </div>
-
-              <form id="api-query-form" class="api-form">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="cardNo">手機條碼 (載具)</label>
-                    <input type="text" id="cardNo" placeholder="/AB12345" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="cardEncrypt">驗證碼 (載具密碼)</label>
-                    <input type="password" id="cardEncrypt" placeholder="請輸入載具密碼" required>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="startDate">查詢起始日</label>
-                    <input type="date" id="startDate" required value="2026-07-01">
-                  </div>
-                  <div class="form-group">
-                    <label for="endDate">查詢截止日</label>
-                    <input type="date" id="endDate" required value="2026-07-14">
-                  </div>
-                </div>
-                <details class="api-advanced" id="api-advanced">
-                  <summary>開發者設定：使用自己的財政部 AppID / APIKey</summary>
-                  <p>若網站尚未設定伺服器端憑證，可於本機暫時輸入。正式部署請改用環境變數，勿將 APIKey 放入前端程式碼。</p>
-                  <div class="form-row">
-                  <div class="form-group">
-                    <label for="appID">財政部 AppID</label>
-                    <input type="text" id="appID" autocomplete="off" placeholder="僅在自行開發時填寫">
-                  </div>
-                  <div class="form-group">
-                    <label for="apiKey">APIKey</label>
-                    <input type="password" id="apiKey" autocomplete="off" placeholder="僅在自行開發時填寫">
-                  </div>
-                  </div>
-                </details>
-                <button type="submit" class="submit-btn" id="api-submit-btn">
-                  <i data-lucide="refresh-cw"></i> 啟動 API 自動查詢與比對
-                </button>
-              </form>
-            </div>
-            
           </div>
         </div>
 

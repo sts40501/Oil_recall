@@ -1,0 +1,5 @@
+#erecall-panel { position:fixed; right:16px; bottom:16px; z-index:2147483647; width:min(360px,calc(100vw - 32px)); padding:10px; border:1px solid #354666; border-radius:12px; background:#111a2d; color:#f5f7ff; box-shadow:0 12px 32px #0008; font:14px/1.45 system-ui,sans-serif; }
+#erecall-compare { width:100%; border:0; border-radius:8px; padding:10px; background:#74adff; color:#071323; cursor:pointer; font-weight:700; }
+#erecall-result { display:grid; gap:7px; max-height:45vh; margin-top:9px; overflow:auto; color:#c5cfe6; }
+.erecall-match { border-left:3px solid #ffc260; padding:7px; background:#172238; border-radius:5px; }
+.erecall-match.danger { border-color:#ff7580; }

@@ -1,13 +1,11 @@
 <!doctype html>
 <html lang="zh-Hant-TW">
-  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>E-Recall 載具比對</title><link rel="stylesheet" href="extension.css"></head>
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>E-Recall 發票頁面比對</title><link rel="stylesheet" href="extension.css"></head>
   <body>
     <main class="app-shell">
-      <header><div><p class="eyebrow">PRIVATE · LOCAL MATCHING</p><h1>E-Recall 載具食安比對</h1></div><button id="open-settings" class="secondary">設定</button></header>
-      <section id="setup-view" class="card hidden"><h2>尚未設定服務</h2><p>請先設定已啟用 Netlify Identity 的部署網址，再登入使用。</p><button class="open-settings">前往設定</button></section>
-      <section id="login-view" class="card hidden"><h2>登入後才能查詢</h2><p>使用 E-Recall 帳號登入。登入 token 僅保留在本次瀏覽器工作階段，不會寫入磁碟。</p><form id="login-form"><label>電子郵件<input id="email" type="email" autocomplete="username" required></label><label>密碼<input id="password" type="password" autocomplete="current-password" required></label><button type="submit">登入</button></form><p id="login-status" class="status" role="status"></p></section>
-      <section id="query-view" class="card hidden"><div class="section-head"><div><p id="signed-in-as" class="signed-in"></p><h2>查詢手機載具</h2></div><button id="logout" class="secondary">登出</button></div><p>載具密碼只會隨本次 HTTPS 請求傳到查詢服務，不會由擴充功能保存。每次查詢須在同一月份。</p><form id="query-form" class="query-grid"><label>手機條碼<input id="card-no" placeholder="/AB12345" autocomplete="off" required></label><label>載具密碼<input id="card-encrypt" type="password" autocomplete="off" required></label><label>起始日期<input id="start-date" type="date" required></label><label>截止日期<input id="end-date" type="date" required></label><button type="submit">查詢並在本機比對</button></form><p id="query-status" class="status" role="status"></p></section>
-      <section id="results-view" class="card hidden"><h2>比對結果</h2><p id="result-summary"></p><div id="result-list" class="results"></div></section>
+      <header><div><p class="eyebrow">PRIVATE · LOCAL MATCHING</p><h1>E-Recall 發票頁面比對</h1></div></header>
+      <section class="card"><h2>使用方式</h2><p>請自行前往官方電子發票平台登入、完成驗證並開啟發票明細頁。接著點選瀏覽器工具列的 E-Recall 圖示，即會只在本機讀取目前頁面文字並比對。</p><button id="open-official">開啟官方電子發票平台</button></section>
+      <section class="card"><h2>隱私保護</h2><p>擴充功能不提供登入欄位、不讀取密碼、不保存 cookie，也不對財政部網站發出查詢請求。資料只在目前頁面與內建回收清單間本機比對。</p></section>
       <footer>官方資料：食藥署公告與泰山 115/07/12 公開流向。流向資料不代表所有商品皆受影響，請核對品名、店家與批號。</footer>
     </main>
     <script src="dashboard.js"></script>
