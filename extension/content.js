@@ -28,6 +28,12 @@ function findPageSizeSelect() {
     Array.from(select.options).some((option) => option.value === '10' || option.text.trim() === '10'));
 }
 
+function findApplyButton(select) {
+  const container = select.closest('div, li, td, th') || select.parentElement;
+  return Array.from(container?.querySelectorAll('button, input[type="button"], input[type="submit"]') || [])
+    .find((button) => isVisible(button));
+}
+
 function findPageSelect() {
   return Array.from(document.querySelectorAll('select')).find((select) => select !== findPageSizeSelect() && (() => {
     const values = Array.from(select.options).map((option) => Number(option.value || option.text));
@@ -56,13 +62,17 @@ async function setPageSizeTo100() {
   select.value = Array.from(select.options).find((option) => option.value === '100' || option.text.trim() === '100').value;
   select.dispatchEvent(new Event('input', { bubbles: true }));
   select.dispatchEvent(new Event('change', { bubbles: true }));
-  await delay(700);
+  const apply = findApplyButton(select);
+  if (!apply) throw new Error('找不到「顯示筆數」的執行按鈕。');
+  apply.click();
+  await delay(1200);
 }
 
-async function waitForPageChange(pageSelect, oldPage) {
+async function waitForPageChange(oldPage) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     await delay(250);
-    if (pageSelect.value !== oldPage) return true;
+    // 官方頁面換頁時會重繪下拉控制項，不能繼續讀取舊節點。
+    if (findPageSelect()?.value !== oldPage) return true;
   }
   return false;
 }
@@ -96,7 +106,7 @@ async function startCsvExport() {
       const next = findNextPage();
       if (!next) throw new Error('找不到下一頁按鈕，已停止後續下載。');
       next.click();
-      if (!await waitForPageChange(pageSelect, currentPage)) throw new Error('切換下一頁逾時，已停止後續下載。');
+      if (!await waitForPageChange(currentPage)) throw new Error('切換下一頁逾時，已停止後續下載。');
     }
     status('CSV 下載完成。請將下載的檔案拖曳到 E-Recall 網站，檔案會只在你的瀏覽器本機解析。');
   } catch (error) {
