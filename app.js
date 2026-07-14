@@ -204,112 +204,20 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function isGenericKeyword(name) {
-    const genericList = ["便當", "即食食品", "肉粽", "沙拉油", "一級黃豆油", "烹調使用", "員工餐廳", "沙拉醬", "香油", "大豆沙拉油", "烹調油"];
-    return genericList.includes(name);
+  // 品項是主要判斷依據；店家只用來縮小「熟食、麵包、沙拉油」等通用詞。
+  // 單純店家出現在流向名單時，不應把該店的非相關商品標成警示。
+  function checkRecallStatus(productName, sellerName = "") {
+    return ERecallMatcher.checkRecallStatus(productName, sellerName, {
+      recalls: state.recallList,
+      downstream: state.downstreamVendors,
+      latest: state.taisunLatest,
+    });
   }
 
-  // --- Fuzzy Check Recall Matcher ---
-  // Returns match details if found in recallList or downstreamVendors
-  function checkRecallStatus(productName, sellerName = "") {
-    if (!productName) return { status: 'safe' };
-    
-    const cleanName = productName.replace(/[\(\)\（\）\s]/g, "")
-                                 .replace(/金馬|離|區|金/g, ""); // strip common prefixes
-    
-    const cleanSeller = sellerName ? sellerName.replace(/[\(\)\（\）\s]/g, "") : "";
-    
-    if (cleanName.length < 2) return { status: 'safe' };
-
-    // 1. Check against Pre-emptive Recall List
-    for (const r of state.recallList) {
-      const cleanRecall = r.prod_name.replace(/[\(\)\（\）\s]/g, "")
-                                      .replace(/金馬|離|區|金/g, "");
-      const cleanRecallVendor = r.vendor.replace(/[\(\)\（\）\s]/g, "");
-      
-      const isGeneric = isGenericKeyword(cleanRecall);
-      let isMatch = false;
-      if (isGeneric) {
-        // If exact name matches (e.g. "便當" = "便當")
-        const exactProdMatch = (cleanName === cleanRecall);
-        if (exactProdMatch) {
-          if (cleanSeller) {
-            // Require the seller name to match the recall vendor name, or allow general retail stores
-            isMatch = cleanSeller.includes(cleanRecallVendor) || cleanRecallVendor.includes(cleanSeller) ||
-                      ["全聯", "家樂福", "大潤發", "蝦皮", "酷澎", "momo"].some(s => cleanSeller.includes(s));
-          } else {
-            isMatch = true; // fallback to true for safety if no seller details
-          }
-        }
-      } else {
-        isMatch = (cleanName.includes(cleanRecall) || cleanRecall.includes(cleanName));
-      }
-      
-      if (isMatch) {
-        return {
-          status: 'danger',
-          type: '預防性下架',
-          vendor: r.vendor,
-          city: r.city,
-          info: `此為官方公告之預防性下架品項。有效日期批號：${r.expiry}`
-        };
-      }
-    }
-
-    // 2. Check against Downstream Vendors list
-    for (const v of state.downstreamVendors) {
-      const cleanItem = v.item.replace(/[\(\)\（\）\s]/g, "");
-      const cleanVendor = v.vendor.replace(/[\(\)\（\）\s]/g, "");
-      
-      const isGenericItem = isGenericKeyword(cleanItem);
-      const isAnonymized = cleanVendor.includes("O") || cleanVendor.includes("o") || cleanVendor.includes("○") || cleanVendor.includes("〇");
-      
-      let isMatch = false;
-      if (isGenericItem) {
-        // For generic items like "沙拉油", match if the store name matches the vendor or if product name matches
-        if (cleanSeller && !isAnonymized) {
-          isMatch = cleanSeller.includes(cleanVendor) || cleanVendor.includes(cleanSeller);
-        } else {
-          isMatch = (cleanName === cleanItem);
-        }
-      } else {
-        const itemMatch = cleanName.includes(cleanItem) || cleanItem.includes(cleanName);
-        const vendorMatch = !isAnonymized && (
-          cleanName.includes(cleanVendor) || 
-          cleanVendor.includes(cleanName) ||
-          (cleanSeller && (cleanSeller.includes(cleanVendor) || cleanVendor.includes(cleanSeller)))
-        );
-        isMatch = itemMatch || vendorMatch;
-      }
-      
-      if (isMatch) {
-        return {
-          status: 'warning',
-          type: '下游受影響業者產油/食品',
-          vendor: v.vendor,
-          city: v.city,
-          info: `此品項購自或內含油脂大廠下游受檢業者「${v.vendor}」查核品項「${v.item}」，可能存在風險。批號/效期：${v.batch} (${v.expiry})`
-        };
-      }
-    }
-
-    // 3. Latest routes published by Taisun on 2026/07/12.  A store route is a
-    // warning, not proof that every product bought there is affected.
-    for (const v of state.taisunLatest) {
-      const cleanItem = v.item.replace(/[\(\)\（\）\s]/g, "");
-      const cleanVendor = v.vendor.replace(/[\(\)\（\）\s]/g, "");
-      const genericItem = isGenericKeyword(cleanItem) || cleanItem.includes('沙拉油') || cleanItem.includes('調合油');
-      const itemMatch = !genericItem && (cleanName.includes(cleanItem) || cleanItem.includes(cleanName));
-      const vendorMatch = cleanSeller && (cleanSeller.includes(cleanVendor) || cleanVendor.includes(cleanSeller));
-      if (itemMatch || vendorMatch) {
-        return {
-          status: 'warning', type: '泰山 7/12 公開流向', vendor: v.vendor, city: v.city,
-          info: `泰山 115/07/12 公開流向資料：業者「${v.vendor}」品項「${v.item}」，批號 ${v.batch}、有效日期 ${v.expiry}。請以實物批號確認。`
-        };
-      }
-    }
-
-    return { status: 'safe' };
+  function escapeHtml(value = "") {
+    return String(value).replace(/[&<>"']/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    })[character]);
   }
 
   // --- Display Results Panel ---
@@ -346,29 +254,26 @@ document.addEventListener("DOMContentLoaded", () => {
     invoiceData.products.forEach(p => {
       const recall = checkRecallStatus(p.name, p.sellerName);
       
-      let statusBadge = `<span class="badge success">安全</span>`;
-      let actionInfo = "未在食藥署回收/警告清單中檢出。";
-      let manufacturer = "-";
+      let statusBadge = `<span class="badge neutral">未命中清單</span>`;
+      let actionInfo = "未比對到目前載入的公告品項；此結果不等同食品安全保證。";
 
       if (recall.status === 'danger') {
         dangerCount++;
-        statusBadge = `<span class="badge danger">下架回收</span>`;
+        statusBadge = `<span class="badge danger">公告品項相符</span>`;
         actionInfo = recall.info;
-        manufacturer = recall.vendor;
       } else if (recall.status === 'warning') {
         warningCount++;
-        statusBadge = `<span class="badge warning">警示</span>`;
+        statusBadge = `<span class="badge warning">流向品項相符</span>`;
         actionInfo = recall.info;
-        manufacturer = recall.vendor;
       }
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><strong>${p.name}</strong></td>
-        <td>數量: ${p.qty || 1}</td>
-        <td>${manufacturer}</td>
-        <td>${statusBadge}</td>
-        <td class="text-secondary" style="font-size: 0.8rem;">${actionInfo}</td>
+        <td data-label="發票品名"><strong>${escapeHtml(p.name)}</strong></td>
+        <td data-label="購買店家">${escapeHtml(p.sellerName || '未提供')}</td>
+        <td data-label="數量">${escapeHtml(p.qty || 1)}</td>
+        <td data-label="比對結果">${statusBadge}</td>
+        <td data-label="判斷依據" class="result-reason">${escapeHtml(actionInfo)}</td>
       `;
       analysisResultsBody.appendChild(tr);
     });
@@ -377,13 +282,13 @@ document.addEventListener("DOMContentLoaded", () => {
     statusBanner.className = "status-summary-banner";
     if (dangerCount > 0) {
       statusBanner.classList.add("alert-danger");
-      statusBanner.innerHTML = `<i data-lucide="shield-x"></i> <span>發現 <strong>${dangerCount}</strong> 項商品名列公告回收下架清單！請立即停止食用，並保留商品與發票至購買門市辦理退貨！</span>`;
+      statusBanner.innerHTML = `<i data-lucide="shield-alert"></i> <span><strong>${dangerCount}</strong> 項發票品名與公告品項相符。CSV 沒有商品效期／批號，請先核對包裝或公告，再決定是否退貨。</span>`;
     } else if (warningCount > 0) {
       statusBanner.classList.add("alert-warning");
-      statusBanner.innerHTML = `<i data-lucide="alert-triangle"></i> <span>有 <strong>${warningCount}</strong> 項商品屬於受影響下游品牌/原料大廠之產品，請謹慎確認批號並注意後續公告！</span>`;
+      statusBanner.innerHTML = `<i data-lucide="scan-search"></i> <span><strong>${warningCount}</strong> 項發票品名與公開流向品項相符，需進一步核對品牌、規格與批號。</span>`;
     } else {
       statusBanner.classList.add("alert-success");
-      statusBanner.innerHTML = `<i data-lucide="check-circle"></i> <span>安全無虞！此張發票所有產品未檢出任何回收或受影響業者項目。</span>`;
+      statusBanner.innerHTML = `<i data-lucide="circle-check"></i> <span>目前未比對到公告品項。這表示「清單沒有命中」，不代表所有商品皆無食品安全風險。</span>`;
     }
 
     lucide.createIcons({ attrs: { class: 'banner-icon' } });
@@ -397,6 +302,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- CSV File Import Logic ---
   csvDropzone.addEventListener("click", () => csvFileInput.click());
+  csvDropzone.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      csvFileInput.click();
+    }
+  });
 
   csvDropzone.addEventListener("dragover", (e) => {
     e.preventDefault();
@@ -411,35 +322,52 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     csvDropzone.classList.remove("drag-over");
     if (e.dataTransfer.files.length > 0) {
-      handleCSVFile(e.dataTransfer.files[0]);
+      handleCSVFiles(e.dataTransfer.files);
     }
   });
 
   csvFileInput.addEventListener("change", (e) => {
     if (e.target.files.length > 0) {
-      handleCSVFile(e.target.files[0]);
+      handleCSVFiles(e.target.files);
     }
   });
 
-  function handleCSVFile(file) {
-    if (!file.name.endsWith(".csv")) {
-      alert("請匯入副檔名為 .csv 的發票消費明細檔案！");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const csvText = event.target.result;
-      parseCSVText(csvText, file.name);
-    };
-    reader.readAsText(file, "utf-8");
+  function readCSVFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = event => resolve(parseCSVText(event.target.result, file.name, false));
+      reader.onerror = () => reject(new Error(`無法讀取 ${file.name}`));
+      reader.readAsText(file, "utf-8");
+    });
   }
 
-  function parseCSVText(text, filename) {
+  async function handleCSVFiles(fileList) {
+    const files = Array.from(fileList);
+    if (!files.length || files.some(file => !file.name.toLowerCase().endsWith(".csv"))) {
+      alert("請只匯入副檔名為 .csv 的發票消費明細檔案！");
+      return;
+    }
+    try {
+      const parsedFiles = (await Promise.all(files.map(readCSVFile))).filter(Boolean);
+      const products = parsedFiles.flatMap(result => result.products);
+      if (!products.length) throw new Error("CSV 內沒有可解析的消費品名");
+      displayResults({
+        invNum: "CSV 檔案批次匯入",
+        invDate: "依檔案明細為準",
+        products,
+        source: `本機匯入 ${files.length} 個 CSV（${products.length} 筆商品）`,
+      });
+      csvFileInput.value = "";
+    } catch (error) {
+      alert(`CSV 匯入失敗：${error.message}`);
+    }
+  }
+
+  function parseCSVText(text, filename, shouldDisplay = true) {
     const lines = text.split(/\r?\n/);
     if (lines.length < 2) {
-      alert("CSV 檔案內容為空！");
-      return;
+      if (shouldDisplay) alert("CSV 檔案內容為空！");
+      return null;
     }
 
     let headers = [];
@@ -489,12 +417,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    displayResults({
+    const result = {
       invNum: "CSV 檔案批次匯入",
       invDate: "依檔案明細為準",
       products,
       source: `匯入檔案: ${filename}`
-    });
+    };
+    if (shouldDisplay) displayResults(result);
+    return result;
   }
 
   // --- Webcam Scan QR Code Scanner Logic ---

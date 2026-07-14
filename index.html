@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-Recall | 電子發票毒油回收快速查詢系統</title>
+  <title>E-Recall | 電子發票食安風險比對</title>
   <meta name="description" content="透過電子發票 QR Code 或 CSV 匯入，在本機快速查詢購買商品是否屬於中聯油脂案影響清單。">
   
   <!-- SEO & Social Meta Tags -->
@@ -39,8 +39,8 @@
       <div class="logo-area">
         <i data-lucide="shield-alert" class="logo-icon"></i>
         <div>
-          <span class="logo-subtitle">FOOD SAFETY AUDIT</span>
-          <h1 id="main-title">E-Recall 毒油案發票快速比對系統</h1>
+          <span class="logo-subtitle">PRIVATE · LOCAL CHECK</span>
+          <h1 id="main-title">E-Recall 電子發票食安風險比對</h1>
         </div>
       </div>
       <div class="header-badge">
@@ -76,18 +76,18 @@
         <div class="stats-card">
           <h3>資料庫監控摘要</h3>
           <div class="stat-row">
-            <span class="stat-label">預防性下架品項</span>
+            <span class="stat-label">公告品項</span>
             <span class="stat-value text-red" id="recall-count">440 項</span>
           </div>
           <div class="stat-row">
-            <span class="stat-label">受影響下游業者</span>
+            <span class="stat-label">下游流向紀錄</span>
             <span class="stat-value text-orange" id="vendor-count">489 筆</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">污染源油槽</span>
             <span class="stat-value text-yellow">313 / 315 槽</span>
           </div>
-          <p class="stat-desc">資料分層呈現：食藥署原公告，以及泰山於 115/07/12 公開的新增流向資料。比對結果請以品名、店家與批號交叉確認。</p>
+          <p class="stat-desc">系統只將「品項相符」列為候選；店家曾出現在流向名單，不代表該店所有商品都有問題。</p>
         </div>
       </section>
 
@@ -97,8 +97,9 @@
         <!-- TAB 1: Carrier (手機載具 & CSV) -->
         <div id="carrier-tab" class="tab-content active">
           <div class="tab-header">
-            <h2>發票明細本機比對</h2>
-            <p>網站版僅在本機解析 CSV 與 QR Code，不需要登入、也不會上傳載具密碼。登入後查詢載具功能請使用 E-Recall 瀏覽器擴充功能。</p>
+            <span class="section-kicker">推薦方式</span>
+            <h2>匯入 CSV，在裝置上完成比對</h2>
+            <p>發票檔案不會上傳。系統會交叉核對品名；通用詞必須再符合公告店家，避免把「熟食、麵包」或同店其他商品誤判為問題品項。</p>
           </div>
 
           <div class="carrier-grid">
@@ -108,16 +109,16 @@
               <div class="card-header">
                 <i data-lucide="file-spreadsheet" class="card-icon text-purple"></i>
                 <div>
-                  <h3>方案 A：匯入發票消費明細 CSV</h3>
-                  <p>隱私安全，無須上傳，100% 於本地瀏覽器沙盒中解析比對</p>
+                  <h3>選擇財政部發票明細 CSV</h3>
+                  <p>100% 在目前瀏覽器解析，不傳送發票號碼與消費內容</p>
                 </div>
               </div>
               
-              <div class="drag-drop-area" id="csv-dropzone">
+              <div class="drag-drop-area" id="csv-dropzone" role="button" tabindex="0" aria-label="選擇一個或多個財政部電子發票 CSV 檔案">
                 <i data-lucide="upload-cloud" class="upload-icon"></i>
-                <p>拖曳財政部發票明細 CSV 檔案至此，或 <span class="browse-btn">瀏覽檔案</span></p>
-                <input type="file" id="csv-file-input" accept=".csv" class="hidden-input">
-                <span class="file-hint">支援格式：財政部電子發票整合服務平台下載之消費明細 CSV</span>
+                <p><strong>拖曳 CSV 到這裡</strong><br>或 <span class="browse-btn">從裝置選擇檔案</span></p>
+                <input type="file" id="csv-file-input" accept=".csv,text/csv" class="hidden-input" multiple>
+                <span class="file-hint">可一次選擇多個月份；支援財政部電子發票整合服務平台 CSV</span>
               </div>
             </div>
 
@@ -304,16 +305,19 @@
 
           <!-- Products Analysis Table -->
           <div class="products-analysis-list">
-            <h4>比對清單明細</h4>
+            <div class="results-list-heading">
+              <h4>逐項比對明細</h4>
+              <p>店家名稱不會單獨觸發商品警示；通用品名必須同時符合公告店家。</p>
+            </div>
             <div class="analysis-table-wrapper">
               <table class="analysis-table">
                 <thead>
                   <tr>
-                    <th>品名</th>
-                    <th>購買狀態</th>
-                    <th>製造業者</th>
-                    <th>食安檢核狀態</th>
-                    <th>公告下架資訊</th>
+                    <th>發票品名</th>
+                    <th>購買店家</th>
+                    <th>數量</th>
+                    <th>比對結果</th>
+                    <th>判斷依據</th>
                   </tr>
                 </thead>
                 <tbody id="analysis-results-body">
@@ -340,6 +344,7 @@
   </div>
 
   <!-- JavaScript Application Entry -->
+  <script src="matcher.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
