@@ -45,7 +45,7 @@
       </div>
       <div class="header-badge">
         <span class="pulse-indicator"></span>
-        食藥署公告 115/07/09 同步
+        <span id="data-updated">資料同步中</span>
       </div>
     </header>
 
@@ -77,17 +77,17 @@
           <h3>資料庫監控摘要</h3>
           <div class="stat-row">
             <span class="stat-label">預防性下架品項</span>
-            <span class="stat-value text-red">440 項</span>
+            <span class="stat-value text-red" id="recall-count">440 項</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">受影響下游業者</span>
-            <span class="stat-value text-orange">489 家</span>
+            <span class="stat-value text-orange" id="vendor-count">489 筆</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">污染源油槽</span>
             <span class="stat-value text-yellow">313 / 315 槽</span>
           </div>
-          <p class="stat-desc">中聯油脂精煉製程大豆油受「苯駢芘」超標污染，波及福懋、福壽、泰山等下游油品大廠及食品業者。</p>
+          <p class="stat-desc">資料分層呈現：食藥署原公告，以及泰山於 115/07/12 公開的新增流向資料。比對結果請以品名、店家與批號交叉確認。</p>
         </div>
       </section>
 
@@ -98,7 +98,7 @@
         <div id="carrier-tab" class="tab-content active">
           <div class="tab-header">
             <h2>手機載具發票比對</h2>
-            <p>透過串接財政部電子發票載具 API 或匯入消費明細 CSV，一鍵篩檢您的歷史消費紀錄是否買過受污染油品食品。</p>
+            <p>透過財政部載具 API 或匯入消費明細 CSV，篩檢您的消費紀錄。載具 API 依官方限制每次查詢一個月份；跨月紀錄請分月查詢或改用 CSV。</p>
           </div>
 
           <div class="carrier-grid">
@@ -126,8 +126,8 @@
               <div class="card-header">
                 <i data-lucide="api" data-lucide="link" class="card-icon text-blue"></i>
                 <div>
-                  <h3>方案 B：介接財政部發票載具 API</h3>
-                  <p>需啟動本地後端伺服器 (server.js)，並填寫個人 AppID 進行安全連線</p>
+                  <h3>方案 B：登入手機載具後自動比對</h3>
+                  <p>載具密碼僅用於本次向財政部 API 查詢；不會儲存在瀏覽器或本站資料庫。</p>
                 </div>
               </div>
 
@@ -151,23 +151,27 @@
                 <div class="form-row">
                   <div class="form-group">
                     <label for="startDate">查詢起始日</label>
-                    <input type="date" id="startDate" required value="2026-04-01">
+                    <input type="date" id="startDate" required value="2026-07-01">
                   </div>
                   <div class="form-group">
                     <label for="endDate">查詢截止日</label>
-                    <input type="date" id="endDate" required value="2026-07-09">
+                    <input type="date" id="endDate" required value="2026-07-14">
                   </div>
                 </div>
-                <div class="form-row">
+                <details class="api-advanced" id="api-advanced">
+                  <summary>開發者設定：使用自己的財政部 AppID / APIKey</summary>
+                  <p>若網站尚未設定伺服器端憑證，可於本機暫時輸入。正式部署請改用環境變數，勿將 APIKey 放入前端程式碼。</p>
+                  <div class="form-row">
                   <div class="form-group">
                     <label for="appID">財政部 AppID</label>
-                    <input type="text" id="appID" placeholder="請輸入財政部核發 AppID" required>
+                    <input type="text" id="appID" autocomplete="off" placeholder="僅在自行開發時填寫">
                   </div>
                   <div class="form-group">
                     <label for="apiKey">APIKey</label>
-                    <input type="password" id="apiKey" placeholder="請輸入 APIKey" required>
+                    <input type="password" id="apiKey" autocomplete="off" placeholder="僅在自行開發時填寫">
                   </div>
-                </div>
+                  </div>
+                </details>
                 <button type="submit" class="submit-btn" id="api-submit-btn">
                   <i data-lucide="refresh-cw"></i> 啟動 API 自動查詢與比對
                 </button>
@@ -233,9 +237,10 @@
               <div class="filter-group">
                 <label>比對清單類型</label>
                 <select id="filter-db-type">
-                  <option value="all">全部資料庫 (下架產品 + 下游業者)</option>
+                  <option value="all">全部資料庫（含 7/12 新增流向）</option>
                   <option value="recall">預防性下架產品清單 (440 項)</option>
                   <option value="vendor">下游業者稽查清單 (489 家)</option>
+                  <option value="taisun">泰山 7/12 新增流向清單</option>
                 </select>
               </div>
               <div class="filter-group">
@@ -253,6 +258,9 @@
                   <option value="南僑">南僑油脂</option>
                   <option value="金色三麥">金色三麥</option>
                   <option value="泰山">泰山企業</option>
+                  <option value="王品">王品集團</option>
+                  <option value="好市多">好市多</option>
+                  <option value="鬍鬚張">鬍鬚張</option>
                   <option value="福壽">福壽實業</option>
                   <option value="福懋">福懋油脂</option>
                 </select>
@@ -294,7 +302,8 @@
           <!-- DB Tabs inside database view -->
           <div class="db-sub-tabs">
             <button class="db-tab active" data-db="recall">預防性下架產品庫 (440 筆)</button>
-            <button class="db-tab" data-db="vendor">下游業者查核庫 (489 筆)</button>
+            <button class="db-tab" data-db="vendor">食藥署下游業者庫 (489 筆)</button>
+            <button class="db-tab" data-db="taisun">泰山 7/12 新增流向</button>
           </div>
 
           <div class="card-panel table-panel">
@@ -377,9 +386,10 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>© 2026 E-Recall 台灣食安發票比對防護網。資料來源：中華民國衛生福利部食品藥物管理署。</p>
+      <p>© 2026 E-Recall 台灣食安發票比對防護網。資料來源：食藥署公告與泰山企業 115/07/12 公開流向附件。</p>
       <p class="footer-links">
         <a href="https://www.fda.gov.tw/tc/site.aspx?sid=13707&r=175957992" target="_blank" rel="noopener noreferrer">食藥署中聯油脂專區</a> | 
+        <a href="https://www.taisun.com.tw/260711p/" target="_blank" rel="noopener noreferrer">泰山 7/12 公開流向附件</a> |
         <a href="https://www.einvoice.nat.gov.tw/" target="_blank" rel="noopener noreferrer">財政部電子發票平台</a>
       </p>
     </footer>

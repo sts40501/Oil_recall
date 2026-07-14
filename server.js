@@ -12,6 +12,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+function resolveCredentials(appID, apiKey) {
+  return {
+    appID: appID || process.env.EINVOICE_APP_ID,
+    apiKey: apiKey || process.env.EINVOICE_API_KEY
+  };
+}
+
 // Helper to generate the signature required by the Ministry of Finance API
 function generateSignature(params, apiKey) {
   // Sort parameters by key alphabetically
@@ -70,9 +77,10 @@ function makePostRequest(url, data) {
 // 1. Endpoint: Fetch carrier invoice headers (發票表頭)
 app.post('/api/carrierHeader', async (req, res) => {
   const { cardNo, cardEncrypt, startDate, endDate, appID, apiKey, uuid } = req.body;
+  const credentials = resolveCredentials(appID, apiKey);
   
-  if (!cardNo || !cardEncrypt || !startDate || !endDate || !appID || !apiKey) {
-    return res.status(400).json({ error: "Missing required parameters" });
+  if (!cardNo || !cardEncrypt || !startDate || !endDate || !credentials.appID || !credentials.apiKey) {
+    return res.status(400).json({ error: "Missing carrier credentials or server API configuration" });
   }
   
   const timeStamp = Math.floor(Date.now() / 1000) + 15; // API timestamp must be within a +/- 5 minute window
@@ -80,15 +88,14 @@ app.post('/api/carrierHeader', async (req, res) => {
   
   // Base parameters required for the API
   const params = {
-    action: 'carrierInvHeader',
-    appID: appID,
+    action: 'carrierInvChk',
+    appID: credentials.appID,
     cardEncrypt: cardEncrypt,
     cardNo: cardNo,
-    cardType: '3G0001', // Phone barcode
+    cardType: '3J0002', // 手機條碼
     endDate: endDate,   // yyyy/MM/dd
-    onlyActive: 'Y',
-    pageNum: '1',
-    pageSize: '500',
+    expTimeStamp: '2147483647',
+    onlyWinningInv: 'N',
     startDate: startDate, // yyyy/MM/dd
     timeStamp: timeStamp,
     uuid: queryUuid,
@@ -96,9 +103,9 @@ app.post('/api/carrierHeader', async (req, res) => {
   };
   
   // Calculate signature
-  params.signature = generateSignature(params, apiKey);
+  params.signature = generateSignature(params, credentials.apiKey);
   
-  const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/Carrier/Aggregate";
+  const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/invServ/InvServ";
   
   try {
     const data = await makePostRequest(apiUrl, params);
@@ -111,9 +118,10 @@ app.post('/api/carrierHeader', async (req, res) => {
 // 2. Endpoint: Fetch carrier invoice detail (發票明細)
 app.post('/api/carrierDetail', async (req, res) => {
   const { cardNo, cardEncrypt, invNum, invDate, appID, apiKey, uuid } = req.body;
+  const credentials = resolveCredentials(appID, apiKey);
   
-  if (!cardNo || !cardEncrypt || !invNum || !invDate || !appID || !apiKey) {
-    return res.status(400).json({ error: "Missing required parameters" });
+  if (!cardNo || !cardEncrypt || !invNum || !invDate || !credentials.appID || !credentials.apiKey) {
+    return res.status(400).json({ error: "Missing carrier credentials or server API configuration" });
   }
   
   const timeStamp = Math.floor(Date.now() / 1000) + 15;
@@ -121,10 +129,11 @@ app.post('/api/carrierDetail', async (req, res) => {
   
   const params = {
     action: 'carrierInvDetail',
-    appID: appID,
+    appID: credentials.appID,
     cardEncrypt: cardEncrypt,
     cardNo: cardNo,
-    cardType: '3G0001',
+    cardType: '3J0002',
+    expTimeStamp: '2147483647',
     invDate: invDate, // yyyy/MM/dd
     invNum: invNum,
     timeStamp: timeStamp,
@@ -132,9 +141,9 @@ app.post('/api/carrierDetail', async (req, res) => {
     version: '0.5'
   };
   
-  params.signature = generateSignature(params, apiKey);
+  params.signature = generateSignature(params, credentials.apiKey);
   
-  const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/Carrier/Detail";
+  const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/invServ/InvServ";
   
   try {
     const data = await makePostRequest(apiUrl, params);
@@ -146,7 +155,7 @@ app.post('/api/carrierDetail', async (req, res) => {
 
 // 3. Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: "alive" });
+  res.json({ status: "alive", configured: Boolean(process.env.EINVOICE_APP_ID && process.env.EINVOICE_API_KEY) });
 });
 
 app.listen(PORT, () => {

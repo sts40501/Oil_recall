@@ -80,8 +80,10 @@ exports.handler = async function(event, context) {
   try {
     const body = JSON.parse(event.body);
     const { cardNo, cardEncrypt, startDate, endDate, appID, apiKey, uuid } = body;
+    const resolvedAppID = appID || process.env.EINVOICE_APP_ID;
+    const resolvedApiKey = apiKey || process.env.EINVOICE_API_KEY;
     
-    if (!cardNo || !cardEncrypt || !startDate || !endDate || !appID || !apiKey) {
+    if (!cardNo || !cardEncrypt || !startDate || !endDate || !resolvedAppID || !resolvedApiKey) {
       return {
         statusCode: 400,
         headers,
@@ -93,24 +95,23 @@ exports.handler = async function(event, context) {
     const queryUuid = uuid || crypto.randomUUID().substring(0, 10);
     
     const params = {
-      action: 'carrierInvHeader',
-      appID: appID,
+      action: 'carrierInvChk',
+      appID: resolvedAppID,
       cardEncrypt: cardEncrypt,
       cardNo: cardNo,
-      cardType: '3G0001',
+      cardType: '3J0002',
       endDate: endDate,
-      onlyActive: 'Y',
-      pageNum: '1',
-      pageSize: '500',
+      expTimeStamp: '2147483647',
+      onlyWinningInv: 'N',
       startDate: startDate,
       timeStamp: timeStamp,
       uuid: queryUuid,
       version: '0.5'
     };
     
-    params.signature = generateSignature(params, apiKey);
+    params.signature = generateSignature(params, resolvedApiKey);
     
-    const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/Carrier/Aggregate";
+    const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/invServ/InvServ";
     const data = await makePostRequest(apiUrl, params);
     
     return {

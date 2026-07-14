@@ -78,8 +78,10 @@ exports.handler = async function(event, context) {
   try {
     const body = JSON.parse(event.body);
     const { cardNo, cardEncrypt, invNum, invDate, appID, apiKey, uuid } = body;
+    const resolvedAppID = appID || process.env.EINVOICE_APP_ID;
+    const resolvedApiKey = apiKey || process.env.EINVOICE_API_KEY;
     
-    if (!cardNo || !cardEncrypt || !invNum || !invDate || !appID || !apiKey) {
+    if (!cardNo || !cardEncrypt || !invNum || !invDate || !resolvedAppID || !resolvedApiKey) {
       return {
         statusCode: 400,
         headers,
@@ -92,10 +94,11 @@ exports.handler = async function(event, context) {
     
     const params = {
       action: 'carrierInvDetail',
-      appID: appID,
+      appID: resolvedAppID,
       cardEncrypt: cardEncrypt,
       cardNo: cardNo,
-      cardType: '3G0001',
+      cardType: '3J0002',
+      expTimeStamp: '2147483647',
       invDate: invDate,
       invNum: invNum,
       timeStamp: timeStamp,
@@ -103,9 +106,9 @@ exports.handler = async function(event, context) {
       version: '0.5'
     };
     
-    params.signature = generateSignature(params, apiKey);
+    params.signature = generateSignature(params, resolvedApiKey);
     
-    const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/Carrier/Detail";
+    const apiUrl = "https://api.einvoice.nat.gov.tw/PB2CAPIVAN/invServ/InvServ";
     const data = await makePostRequest(apiUrl, params);
     
     return {

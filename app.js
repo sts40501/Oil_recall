@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const state = {
     recallList: [],
     downstreamVendors: [],
+    taisunLatest: [],
     proxyAlive: false,
     activeTab: 'carrier-tab',
     
@@ -30,6 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const proxyStatus = document.getElementById("proxy-status");
   const apiQueryForm = document.getElementById("api-query-form");
   const apiSubmitBtn = document.getElementById("api-submit-btn");
+  const dataUpdated = document.getElementById("data-updated");
+  const recallCount = document.getElementById("recall-count");
+  const vendorCount = document.getElementById("vendor-count");
   
   // CSV Dropzone
   const csvDropzone = document.getElementById("csv-dropzone");
@@ -80,15 +84,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load JSON Databases
   async function loadDatabases() {
     try {
-      const [recallRes, vendorRes] = await Promise.all([
+      const [recallRes, vendorRes, taisunRes] = await Promise.all([
         fetch('data/recall_list.json'),
-        fetch('data/downstream_vendors.json')
+        fetch('data/downstream_vendors.json'),
+        fetch('data/taisun_downstream_20260712.json')
       ]);
       
       state.recallList = await recallRes.json();
       state.downstreamVendors = await vendorRes.json();
+      state.taisunLatest = await taisunRes.json();
+      recallCount.innerText = `${state.recallList.length} 項`;
+      vendorCount.innerText = `${(state.downstreamVendors.length + state.taisunLatest.length).toLocaleString()} 筆`;
+      dataUpdated.innerText = '食藥署 + 泰山 115/07/12 同步';
       
-      console.log(`Loaded ${state.recallList.length} recalls and ${state.downstreamVendors.length} vendors.`);
+      console.log(`Loaded ${state.recallList.length} recalls, ${state.downstreamVendors.length} official vendors, and ${state.taisunLatest.length} latest Taisun routes.`);
       
       // Populate filters and tables
       populateCityFilter();
@@ -107,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.status === "alive") {
         state.proxyAlive = true;
         proxyStatus.className = "connection-banner online";
-        proxyStatus.querySelector(".status-text").innerText = "已連線至載具發票 API 代理服務 - API 功能可用";
+        proxyStatus.querySelector(".status-text").innerText = "已連線至安全載具查詢服務 - 可登入載具並進行比對";
         apiSubmitBtn.disabled = false;
       }
     } catch (e) {
@@ -313,6 +322,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // 3. Latest routes published by Taisun on 2026/07/12.  A store route is a
+    // warning, not proof that every product bought there is affected.
+    for (const v of state.taisunLatest) {
+      const cleanItem = v.item.replace(/[\(\)\（\）\s]/g, "");
+      const cleanVendor = v.vendor.replace(/[\(\)\（\）\s]/g, "");
+      const genericItem = isGenericKeyword(cleanItem) || cleanItem.includes('沙拉油') || cleanItem.includes('調合油');
+      const itemMatch = !genericItem && (cleanName.includes(cleanItem) || cleanItem.includes(cleanName));
+      const vendorMatch = cleanSeller && (cleanSeller.includes(cleanVendor) || cleanVendor.includes(cleanSeller));
+      if (itemMatch || vendorMatch) {
+        return {
+          status: 'warning', type: '泰山 7/12 公開流向', vendor: v.vendor, city: v.city,
+          info: `泰山 115/07/12 公開流向資料：業者「${v.vendor}」品項「${v.item}」，批號 ${v.batch}、有效日期 ${v.expiry}。請以實物批號確認。`
+        };
+      }
+    }
+
     return { status: 'safe' };
   }
 
@@ -513,8 +538,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const cardEncrypt = document.getElementById("cardEncrypt").value;
     const startDate = document.getElementById("startDate").value.replace(/-/g, "/");
     const endDate = document.getElementById("endDate").value.replace(/-/g, "/");
-    const appID = document.getElementById("appID").value;
+    const appID = document.getElementById("appID").value.trim();
     const apiKey = document.getElementById("apiKey").value;
+
+    if (startDate.slice(0, 7) !== endDate.slice(0, 7)) {
+      alert("財政部載具 API 每次僅支援同一月份；請分月查詢，或改匯入 CSV 進行跨月比對。");
+      return;
+    }
 
     apiSubmitBtn.disabled = true;
     apiSubmitBtn.innerHTML = `<i data-lucide="refresh-cw" class="animate-spin"></i> 載入中...`;
@@ -525,7 +555,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const headerRes = await fetch(`${apiBase}/carrierHeader`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardNo, cardEncrypt, startDate, endDate, appID, apiKey })
+        body: JSON.stringify({ cardNo, cardEncrypt, startDate, endDate, ...(appID && apiKey ? { appID, apiKey } : {}) })
       });
       
       const headerData = await headerRes.json();
@@ -550,8 +580,7 @@ document.addEventListener("DOMContentLoaded", () => {
             cardEncrypt,
             invNum: inv.invNum,
             invDate: inv.invDate,
-            appID,
-            apiKey
+            ...(appID && apiKey ? { appID, apiKey } : {})
           })
         });
         
@@ -669,6 +698,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const cities = new Set();
     state.recallList.forEach(r => { if (r.city) cities.add(r.city); });
     state.downstreamVendors.forEach(v => { if (v.city) cities.add(v.city); });
+    state.taisunLatest.forEach(v => { if (v.city) cities.add(v.city); });
     
     // Sort cities
     const sortedCities = Array.from(cities).sort();
@@ -708,7 +738,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Filter Vendors
+    // Filter official downstream vendors
     if (dbType === 'all' || dbType === 'vendor') {
       state.downstreamVendors.forEach(v => {
         const matchQuery = !query || v.item.toLowerCase().includes(query) || v.vendor.toLowerCase().includes(query);
@@ -723,6 +753,21 @@ document.addEventListener("DOMContentLoaded", () => {
             name: v.item,
             detail: `業者序號: ${v.seq} | 批號: ${v.batch} | 有效日期: ${v.expiry}`,
             status: 'warning'
+          });
+        }
+      });
+    }
+
+    // Filter latest Taisun downstream routes (published 2026/07/12)
+    if (dbType === 'all' || dbType === 'taisun') {
+      state.taisunLatest.forEach(v => {
+        const matchQuery = !query || v.item.toLowerCase().includes(query) || v.vendor.toLowerCase().includes(query);
+        const matchCity = city === 'all' || v.city === city;
+        const matchBrand = brand === 'all' || v.vendor.includes(brand) || v.item.includes(brand);
+        if (matchQuery && matchCity && matchBrand) {
+          results.push({
+            type: '泰山 7/12 公開流向', city: v.city, vendor: v.vendor, name: v.item,
+            detail: `批號：${v.batch} | 有效日期：${v.expiry} | 公開流向附件 115/07/12`, status: 'warning'
           });
         }
       });
@@ -864,7 +909,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Database Table Paginated Rendering ---
   function updateDBTable() {
-    const list = state.dbCurrentTab === 'recall' ? state.recallList : state.downstreamVendors;
+    const list = state.dbCurrentTab === 'recall' ? state.recallList : state.dbCurrentTab === 'taisun' ? state.taisunLatest : state.downstreamVendors;
     state.dbFilteredData = list;
     
     // Clear Headers
@@ -876,13 +921,17 @@ document.addEventListener("DOMContentLoaded", () => {
         <th>產品名稱</th>
         <th>預定下架期限 / 批號</th>
       `;
-    } else {
+    } else if (state.dbCurrentTab === 'vendor') {
       dbTableHeaders.innerHTML = `
         <th>縣市</th>
         <th>下游業者</th>
         <th>使用查核品項</th>
         <th>受影響批號</th>
         <th>有效日期</th>
+      `;
+    } else {
+      dbTableHeaders.innerHTML = `
+        <th>縣市</th><th>流向業者／門市</th><th>受影響品項</th><th>批號</th><th>有效日期</th>
       `;
     }
 
