@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     downstreamVendors: [],
     taisunLatest: [],
     proxyAlive: false,
+    proxyConfigured: false,
     activeTab: 'carrier-tab',
     
     // Manual database browser pagination
@@ -31,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const proxyStatus = document.getElementById("proxy-status");
   const apiQueryForm = document.getElementById("api-query-form");
   const apiSubmitBtn = document.getElementById("api-submit-btn");
+  const apiAdvanced = document.getElementById("api-advanced");
   const dataUpdated = document.getElementById("data-updated");
   const recallCount = document.getElementById("recall-count");
   const vendorCount = document.getElementById("vendor-count");
@@ -115,12 +117,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
       if (data.status === "alive") {
         state.proxyAlive = true;
+        state.proxyConfigured = Boolean(data.configured);
         proxyStatus.className = "connection-banner online";
         proxyStatus.querySelector(".status-text").innerText = "已連線至安全載具查詢服務 - 可登入載具並進行比對";
+        apiAdvanced.classList.toggle("hidden", state.proxyConfigured);
         apiSubmitBtn.disabled = false;
       }
     } catch (e) {
       state.proxyAlive = false;
+      state.proxyConfigured = false;
+      apiAdvanced.classList.remove("hidden");
       proxyStatus.className = "connection-banner offline";
       proxyStatus.querySelector(".status-text").innerText = "未連線至載具發票 API 代理服務 - 方案 B 停用 (方案 A 仍可用)";
       apiSubmitBtn.disabled = true;

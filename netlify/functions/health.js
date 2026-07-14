@@ -9,6 +9,9 @@ exports.handler = async function(event, context) {
   return {
     statusCode: 200,
     headers,
-    body: JSON.stringify({ status: "alive" })
+    body: JSON.stringify({
+      status: "alive",
+      configured: Boolean(process.env.EINVOICE_APP_ID && process.env.EINVOICE_API_KEY)
+    })
   };
 };
