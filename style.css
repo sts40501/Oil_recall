@@ -360,6 +360,9 @@ h1 {
   gap: 24px;
 }
 
+/* Carrier API is intentionally available only from the authenticated extension. */
+.api-card { display: none; }
+
 /* CSV Drag Drop Area */
 .drag-drop-area {
   border: 2px dashed rgba(var(--border-color));

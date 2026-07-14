@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const https = require('https');
 const querystring = require('querystring');
+const { requireIdentityUser } = require('./identity');
 
 function generateSignature(params, apiKey) {
   const sortedKeys = Object.keys(params).sort();
@@ -57,7 +58,8 @@ exports.handler = async function(event, context) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store'
   };
 
   // Handle preflight options request
@@ -77,11 +79,20 @@ exports.handler = async function(event, context) {
     };
   }
 
+  if (!await requireIdentityUser()) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({ error: 'Sign in is required before querying carrier invoices.' })
+    };
+  }
+
   try {
     const body = JSON.parse(event.body);
-    const { cardNo, cardEncrypt, startDate, endDate, appID, apiKey, uuid } = body;
-    const resolvedAppID = appID || process.env.EINVOICE_APP_ID;
-    const resolvedApiKey = apiKey || process.env.EINVOICE_API_KEY;
+    const { cardNo, cardEncrypt, startDate, endDate, uuid } = body;
+    // Production requests must never carry an AppID/APIKey from a browser.
+    const resolvedAppID = process.env.EINVOICE_APP_ID;
+    const resolvedApiKey = process.env.EINVOICE_API_KEY;
     
     if (!cardNo || !cardEncrypt || !startDate || !endDate || !resolvedAppID || !resolvedApiKey) {
       return {

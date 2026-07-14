@@ -97,14 +97,14 @@
         <!-- TAB 1: Carrier (手機載具 & CSV) -->
         <div id="carrier-tab" class="tab-content active">
           <div class="tab-header">
-            <h2>手機載具發票比對</h2>
-            <p>透過財政部載具 API 或匯入消費明細 CSV，篩檢您的消費紀錄。載具 API 依官方限制每次查詢一個月份；跨月紀錄請分月查詢或改用 CSV。</p>
+            <h2>發票明細本機比對</h2>
+            <p>網站版僅在本機解析 CSV 與 QR Code，不需要登入、也不會上傳載具密碼。登入後查詢載具功能請使用 E-Recall 瀏覽器擴充功能。</p>
           </div>
 
           <div class="carrier-grid">
             
             <!-- Option A: CSV Drag and Drop -->
-            <div class="card-panel">
+            <div class="card-panel api-card" aria-hidden="true">
               <div class="card-header">
                 <i data-lucide="file-spreadsheet" class="card-icon text-purple"></i>
                 <div>
