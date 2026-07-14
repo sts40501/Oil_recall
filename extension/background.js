@@ -58,6 +58,7 @@ function matchPage(text, { recalls, vendors, latest }) {
 }
 
 const officialInvoicePage = 'https://www.einvoice.nat.gov.tw/portal/btc/mobile/btc502w';
+const csvComparisonSite = 'https://oilrecall.netlify.app/';
 
 chrome.action.onClicked.addListener(async (tab) => {
   await chrome.storage.session.set({ csvExportPending: true });
@@ -71,6 +72,10 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === 'OPEN_CSV_COMPARISON_SITE') {
+    chrome.tabs.create({ url: csvComparisonSite });
+    return;
+  }
   if (message.type !== 'MATCH_VISIBLE_INVOICE_PAGE') return;
   getData().then((data) => sendResponse({ matches: matchPage(message.text, data) })).catch(() => sendResponse({ matches: [], error: '無法載入本機比對資料。' }));
   return true;

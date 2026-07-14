@@ -1,10 +1,10 @@
 function createPanel() {
   const panel = document.createElement('section');
   panel.id = 'erecall-panel';
-  panel.innerHTML = '<button id="erecall-export">下載所有頁 CSV</button><button id="erecall-compare" class="erecall-secondary">比對目前頁面</button><div id="erecall-result" aria-live="polite"></div>';
+  panel.innerHTML = '<button id="erecall-export">下載所有頁 CSV</button><button id="erecall-open-csv" class="erecall-secondary">前往比對 CSV 檔案</button><div id="erecall-result" aria-live="polite">已就緒：尚未開始下載。</div>';
   document.documentElement.appendChild(panel);
   panel.querySelector('#erecall-export').addEventListener('click', startCsvExport);
-  panel.querySelector('#erecall-compare').addEventListener('click', compareCurrentPage);
+  panel.querySelector('#erecall-open-csv').addEventListener('click', () => chrome.runtime.sendMessage({ type: 'OPEN_CSV_COMPARISON_SITE' }));
   return panel;
 }
 
@@ -94,7 +94,9 @@ async function startCsvExport() {
   }
 
   exporting = true;
+  let downloadedPages = 0;
   try {
+    status('正在設定每頁 100 筆…');
     await setPageSizeTo100();
     for (;;) {
       const pageSelect = findPageSelect();
@@ -108,44 +110,27 @@ async function startCsvExport() {
       await delay(250);
       status(`正在下載第 ${currentPage}／${maxPage} 頁 CSV…`);
       download.click();
+      downloadedPages += 1;
       await delay(1200);
 
-      if (!pageSelect || Number(currentPage) >= maxPage) break;
+      const refreshedPageSelect = findPageSelect();
+      const refreshedMaxPage = refreshedPageSelect ? Math.max(...Array.from(refreshedPageSelect.options).map((option) => Number(option.value || option.text))) : 1;
+      if (!refreshedPageSelect || Number(currentPage) >= refreshedMaxPage) break;
       const next = findNextPage();
       if (!next) throw new Error('找不到下一頁按鈕，已停止後續下載。');
       next.click();
       if (!await waitForPageChange(currentPage)) throw new Error('切換下一頁逾時，已停止後續下載。');
     }
-    status('CSV 下載完成。請將下載的檔案拖曳到 E-Recall 網站，檔案會只在你的瀏覽器本機解析。');
+    status(`CSV 下載完成：共 ${downloadedPages} 頁。點擊「前往比對 CSV 檔案」在網站本機判讀。`);
   } catch (error) {
-    status(`CSV 下載未完成：${error.message}`);
+    status(`CSV 批次下載暫停：已下載 ${downloadedPages} 頁。${error.message}`);
   } finally {
     exporting = false;
     chrome.storage.session.remove('csvExportPending');
   }
 }
 
-function renderResult(response) {
-  const output = document.querySelector('#erecall-result');
-  if (response.error) { output.textContent = response.error; return; }
-  if (!response.matches.length) { output.textContent = '目前頁面未比對到公告品項或業者。此結果不等同食品安全保證。'; return; }
-  output.replaceChildren(...response.matches.map((match) => {
-    const row = document.createElement('article');
-    row.className = `erecall-match ${match.level}`;
-    const qualifier = match.matchType === 'brand' ? '｜業者名稱可能相符，請確認門市、品項與批號' : '';
-    row.textContent = `${match.source}｜${match.vendor}｜${match.item}${match.detail ? `｜${match.detail}` : ''}${qualifier}`;
-    return row;
-  }));
-}
-
-function compareCurrentPage() {
-  const output = document.querySelector('#erecall-result');
-  output.textContent = '正在本機比對目前頁面…';
-  chrome.runtime.sendMessage({ type: 'MATCH_VISIBLE_INVOICE_PAGE', text: document.body.innerText }, renderResult);
-}
-
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === 'COMPARE_CURRENT_PAGE') compareCurrentPage();
   if (message.type === 'START_CSV_EXPORT') startCsvExport();
 });
 
