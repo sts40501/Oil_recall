@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "E-Recall 載具食安比對",
-  "version": "1.0.0",
-  "description": "在使用者自行登入官方電子發票網站後，本機比對目前頁面的發票資訊。",
+  "version": "1.1.0",
+  "description": "導向已登入的官方電子發票頁面，批次下載 CSV 後由使用者自行在網站本機比對。",
   "action": {
     "default_title": "開啟 E-Recall 載具比對"
   },
   "background": {
     "service_worker": "background.js"
   },
+  "permissions": ["storage"],
   "host_permissions": ["https://www.einvoice.nat.gov.tw/*"],
   "content_scripts": [{
     "matches": ["https://www.einvoice.nat.gov.tw/*"],

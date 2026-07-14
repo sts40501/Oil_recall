@@ -57,9 +57,17 @@ function matchPage(text, { recalls, vendors, latest }) {
   return matches.slice(0, 100);
 }
 
-chrome.action.onClicked.addListener((tab) => {
-  if (tab.url?.startsWith('https://www.einvoice.nat.gov.tw/')) chrome.tabs.sendMessage(tab.id, { type: 'COMPARE_CURRENT_PAGE' });
-  else chrome.tabs.create({ url: 'https://www.einvoice.nat.gov.tw/' });
+const officialInvoicePage = 'https://www.einvoice.nat.gov.tw/portal/btc/mobile/btc502w';
+
+chrome.action.onClicked.addListener(async (tab) => {
+  await chrome.storage.session.set({ csvExportPending: true });
+  if (tab.url?.includes('/portal/btc/mobile/btc502w/detail')) {
+    chrome.tabs.sendMessage(tab.id, { type: 'START_CSV_EXPORT' });
+  } else if (tab.url?.startsWith('https://www.einvoice.nat.gov.tw/')) {
+    chrome.tabs.update(tab.id, { url: officialInvoicePage });
+  } else {
+    chrome.tabs.create({ url: officialInvoicePage });
+  }
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
