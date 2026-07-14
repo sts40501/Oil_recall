@@ -46,9 +46,17 @@ function findDownloadButton() {
     .find((element) => element.getClientRects().length && textOf(element).includes('下載CSV檔'));
 }
 
-function findSelectAll() {
-  return Array.from(document.querySelectorAll('thead input[type="checkbox"], th input[type="checkbox"]'))
-    .find((checkbox) => isVisible(checkbox));
+function findCsvSelectAll() {
+  // 第一欄是「捐贈」選取；CSV 選取欄固定在表格最後一欄。
+  // 只接受每個表頭列最後一個可見核取方塊，無法明確辨識時寧可停止。
+  const candidates = Array.from(document.querySelectorAll('table tr'))
+    .filter((row) => row.querySelector('th'))
+    .flatMap((row) => {
+      const checkboxes = Array.from(row.querySelectorAll('input[type="checkbox"]'))
+        .filter((checkbox) => isVisible(checkbox));
+      return checkboxes.length ? [checkboxes.at(-1)] : [];
+    });
+  return candidates.at(-1) || null;
 }
 
 function findNextPage() {
@@ -92,7 +100,7 @@ async function startCsvExport() {
       const pageSelect = findPageSelect();
       const currentPage = pageSelect?.value || '1';
       const maxPage = pageSelect ? Math.max(...Array.from(pageSelect.options).map((option) => Number(option.value || option.text))) : 1;
-      const selectAll = findSelectAll();
+      const selectAll = findCsvSelectAll();
       const download = findDownloadButton();
       if (!selectAll || !download) throw new Error('找不到全選或下載 CSV 按鈕，可能是官方頁面版面已更新。');
 
